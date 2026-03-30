@@ -4,22 +4,9 @@ import utils
 from utils import f, grad_f
 
 
-#line search вспомогательный
-def armijo_backtracking(x, p, g, alpha0=1.0, c=1e-4, rho=0.5, max_iter=50):
-    alpha = alpha0
-    fx = f(x)
-    gp = np.dot(g, p)
-
-    for _ in range(max_iter):
-        x_new = x + alpha * p
-        if f(x_new) <= fx + c * alpha * gp:
-            return alpha
-        alpha *= rho
-
-    return alpha
-
 def exploratory_search(x, delta):
     """
+    Ищет направление по координатам
     метод идёт по координатам и пробует +/- delta.
     """
     x_best = x.copy()
@@ -45,9 +32,11 @@ def exploratory_search(x, delta):
 
     return x_best, f_best
 
-def hooke_jeeves(x0, delta0=1.0, eps=1e-6, gamma=2.0, beta=0.5, max_iter=500):
+def hooke_jeeves(x0, eps, delta0=1.0, gamma=2.0, beta=0.5, max_iter=500):
     """
     Метод Хука–Дживса.
+    x0 - нач. точка
+    delta - шаг
     gamma - коэффициент ускорения при образцовом шаге
     beta  - коэффициент уменьшения шага при неудаче
     """
@@ -83,11 +72,11 @@ def hooke_jeeves(x0, delta0=1.0, eps=1e-6, gamma=2.0, beta=0.5, max_iter=500):
 
             # проверяем, стал ли образцовый шаг лучше
             if f(x_pattern) < f_new:
-                x_base = x_pattern
+                x_base = x_pattern #принимаем
             else:
-                x_base = x_new
+                x_base = x_new #остаемся в x_new 
         else:
-            # уменьшить шаг поиска
+            # уменьшить шаг поиска, если улучшения нет
             delta *= beta
 
         if delta < eps:
@@ -99,7 +88,7 @@ def hooke_jeeves(x0, delta0=1.0, eps=1e-6, gamma=2.0, beta=0.5, max_iter=500):
 if __name__ == "__main__":
     x0 = np.array([1.0, 1.0])
 
-    x_hj, hist_hj = hooke_jeeves(x0, delta0=1.0, eps=1e-6)
+    x_hj, hist_hj = hooke_jeeves(x0, delta0=1.0, eps=1e-3)
     df_hj = pd.DataFrame(hist_hj)
 
     print("=== Hooke-Jeeves ===")

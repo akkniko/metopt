@@ -6,7 +6,30 @@ from utils import f, grad_f
 from hooke_jeevs import armijo_backtracking, hooke_jeeves
 
 
-def bfgs(x0, eps=1e-6, max_iter=200):
+#line search вспомогательный
+def armijo_backtracking(x, p, g, alpha0=1.0, c=1e-4, rho=0.5, max_iter=50):
+    '''
+    подбор шага, чтобы функция гарантированно уменьшалась
+    ищется alpha, удовлетворяющее условию
+    f(x+alpha*p) <= f(x)+c*alpha grad(f(x)T)*p - первый член разложения Тейлора
+    alpha0  - начальный шаг
+    c       - параметр "строгости"
+    rho     - коэффициент уменьшения шага
+    '''
+    alpha = alpha0
+    fx = f(x)
+    gp = np.dot(g, p) #gTp - производная вдоль направления p
+
+    for _ in range(max_iter):
+        x_new = x + alpha * p
+        if f(x_new) <= fx + c * alpha * gp:
+            return alpha
+        alpha *= rho #если шаг не подходит - уменьшаем 
+
+    return alpha
+
+
+def bfgs(x0, eps, max_iter=200):
     x = np.array(x0, dtype=float)
     n = len(x)
     H = np.eye(n)   #нач приближение 
@@ -30,11 +53,12 @@ def bfgs(x0, eps=1e-6, max_iter=200):
         # направление спуска
         p = -H @ g
 
-        #if направление не убывающее- сбрасываем H
+        #if направление не убывающее - сбрасываем H, откатываемся к градиентному шагу
         if np.dot(p, g) >= 0:
             H = np.eye(n)
             p = -g
 
+        #подбор шага
         alpha = armijo_backtracking(x, p, g, alpha0=1.0)
 
         x_new = x + alpha * p
@@ -50,7 +74,7 @@ def bfgs(x0, eps=1e-6, max_iter=200):
             rho = 1.0 / ys
             I = np.eye(n)
             Hy = H @ y
-
+            
             H = (I - rho * np.outer(s, y)) @ H @ (I - rho * np.outer(y, s)) + rho * np.outer(s, s)
         else:
             # если обновление плохое, сбрасываем H
@@ -66,7 +90,7 @@ def bfgs(x0, eps=1e-6, max_iter=200):
 if __name__ == "__main__":
     x0 = np.array([1.0, 1.0])
 
-    x_bfgs, hist_bfgs = bfgs(x0, eps=1e-6)
+    x_bfgs, hist_bfgs = bfgs(x0, eps=1e-3)
     df_bfgs = pd.DataFrame(hist_bfgs)
 
     print("=== BFGS ===")

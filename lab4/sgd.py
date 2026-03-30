@@ -6,7 +6,13 @@ import utils
 from utils import grad_f, f
 
 def golden_section_minimize(phi, a, b, tol=1e-8, max_iter=200):
-    gr = (np.sqrt(5) - 1) / 2  # ~0.618
+    '''
+    нахождение минимума функции на интервале
+        - берём две точки внутри интервала
+        - сравниваем значения функции
+        - отбрасываем «плохую» часть
+    '''
+    gr = (np.sqrt(5) - 1) / 2  # 0.618 - коэф золотого сечения, позволяет: не пересчитывать 1 из точек на каждом шаге
     c = b - gr * (b - a)
     d = a + gr * (b - a)
     fc = phi(c)
@@ -31,9 +37,9 @@ def bracket_minimum(phi, alpha0=0.0, h=1.0, expand=2.0, max_steps=50):
     """
     Находит интервал [a, b], содержащий минимум
     """
-    a = alpha0
+    a = alpha0 #нач точка
     fa = phi(a)
-    b = a + h
+    b = a + h  #делаем шаг вправо
     fb = phi(b)
 
     # Если пошли вверх - интервал найден
@@ -41,7 +47,7 @@ def bracket_minimum(phi, alpha0=0.0, h=1.0, expand=2.0, max_steps=50):
         return a, b
 
     for _ in range(max_steps):
-        h *= expand
+        h *= expand #увеличиваем шаг, И идём дальше, пока не найдём:𝑓(𝑏) > 𝑓(𝑎)
         a, fa = b, fb
         b = a + h
         fb = phi(b)
@@ -52,11 +58,12 @@ def bracket_minimum(phi, alpha0=0.0, h=1.0, expand=2.0, max_steps=50):
 
 def exact_line_search(xk, gk):
     """
-    alpha = argmin_{alpha>=0} f(xk - alpha*gk)
+    нахождение оптимального шага - alpha = argmin_{alpha>=0} f(xk - alpha*gk)
     """
+    #Строит функцию
     phi = lambda alpha: f(xk - alpha * gk)
-    a, b = bracket_minimum(phi, alpha0=0.0, h=1.0)
-    alpha_star = golden_section_minimize(phi, a, b, tol=1e-10)
+    a, b = bracket_minimum(phi, alpha0=0.0, h=1.0) #нахождение интервала
+    alpha_star = golden_section_minimize(phi, a, b, tol=1e-10)  #нахождение минимума внутри интервала
     return alpha_star
 
 def steepest_descent(x0, eps=1e-6, max_iter=100):
@@ -69,12 +76,12 @@ def steepest_descent(x0, eps=1e-6, max_iter=100):
 
         row = {
             "k": k,
-            "x1": round(x[0],2),
-            "x2": round(x[1],2),
-            "f(x)": round(f(x),2),
-            "||grad||": round(g_norm,2),
-            "alpha": round(np.nan,2),
-            "step_len": round(np.nan,2),
+            "x1": x[0],
+            "x2": x[1],
+            "f(x)": f(x),
+            "||grad||": g_norm,
+            "alpha": np.nan,
+            "step_len": np.nan,
             "dot(grad_next, step)": np.nan,
             "angle_deg": np.nan
         }
@@ -92,10 +99,10 @@ def steepest_descent(x0, eps=1e-6, max_iter=100):
         denom = np.linalg.norm(g_next) * np.linalg.norm(step)
         angle = np.degrees(np.arccos(np.clip(abs(dot_val) / denom, -1.0, 1.0))) if denom > 0 else np.nan
 
-        row["alpha"] = round(alpha,2)
-        row["step_len"] = round(np.linalg.norm(step), 2)
-        row["dot(grad_next, step)"] = round(dot_val, 2)
-        row["angle_deg"] = round(angle, 2)
+        row["alpha"] = alpha
+        row["step_len"] = np.linalg.norm(step)
+        row["dot(grad_next, step)"] = dot_val
+        row["angle_deg"] = angle
 
         history.append(row)
 
@@ -106,26 +113,26 @@ def steepest_descent(x0, eps=1e-6, max_iter=100):
 
     return x, history
 
-def animate_descent(path, x0, delay=0.2):
-    path = np.array(path)
+def animate_descent( x0, delay=0.2):
 
-    x1_min = path[:, 0].min() - 1.0
-    x1_max = path[:, 0].max() + 1.0
-    x2_min = path[:, 1].min() - 1.0
-    x2_max = path[:, 1].max() + 1.0
+    x1_min, x1_max = -3, 3
+    x2_min, x2_max = -1, 3
 
-    x1 = np.linspace(x1_min, x1_max, 300)
-    x2 = np.linspace(x2_min, x2_max, 300)
+    #строится прямоугольная сетка в плоскости (x1, x2)
+    x1 = np.linspace(x1_min, x1_max, 60)
+    x2 = np.linspace(x2_min, x2_max, 60)
     X1, X2 = np.meshgrid(x1, x2)
     Z = 2*X1 - 5*X2 + np.exp(X1**2 + 0.5*X2**2)
 
     plt.ion()
     fig, ax = plt.subplots(figsize=(15, 10))
+    
+    #отрисовка линий уровня f(x1,x2) = c
     ax.contour(X1, X2, Z, levels=30)
 
-    line, = ax.plot([], [], "o-", linewidth=2, markersize=5, label="Gradient polyline")
-    start_pt = ax.scatter([x0[0]], [x0[1]], c="red", s=80, label="x0")
-    curr_pt = ax.scatter([], [], c="green", s=80, label="current point")
+    line, = ax.plot([], [], "o-", linewidth=2, markersize=5, label="Gradient polyline")#ломаная которая потом будет обновляться
+    start_pt = ax.scatter([x0[0]], [x0[1]], c="red", s=80, label="x0")                #точка начального приближения
+    curr_pt = ax.scatter([], [], c="green", s=80, label="current point")             #точка текущего положения
 
     ax.set_xlabel("x1")
     ax.set_ylabel("x2")
@@ -134,19 +141,22 @@ def animate_descent(path, x0, delay=0.2):
     ax.grid(True)
 
     for i in range(1, len(path) + 1):
-        p = path[:i]
-        line.set_data(p[:, 0], p[:, 1])
-        curr_pt.set_offsets([p[-1]])
-        fig.canvas.draw()
+        p = path[:i] #Берётся первые i точек траектории
+        line.set_data(p[:, 0], p[:, 1]) #обновление ломаной
+        curr_pt.set_offsets([p[-1]]) #зеленая точка переносится в новую вершину ломанной 
+        fig.canvas.draw()           
         fig.canvas.flush_events()
         plt.pause(delay)
 
     plt.ioff()
     plt.show(block=True)
 
+
+
+
 x0 = np.array([1.0, 1.0])  
 e = [0.1, 0.01, 0.001]
-eps = e[1]
+eps = e[2]
 
 x_star, hist = steepest_descent(x0, eps=eps, max_iter=500)
 
@@ -164,13 +174,15 @@ print("Table of iterations:")
 print(df.to_string(index=False))
 
 path = np.array([[row["x1"], row["x2"]] for row in hist])
-animate_descent(path, x0, delay=0.4)
+animate_descent( x0, delay=0.4)
 
 print("\nOrthogonality check:")
 print("For accurate line search there should be: grad(x_{k+1}) - (x_{k+1}-x_k) = 0")
 check_rows = []
+
+#обновление ломанной
 for i in range(len(path) - 1):
-    xk = path[i]
+    xk = path[i] 
     xk1 = path[i + 1]
     step = xk1 - xk
     g_next = grad_f(xk1)
